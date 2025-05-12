@@ -26,11 +26,9 @@ class MapsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Inicializar ViewBinding
         binding = ActivityMapsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Inicializar el FusedLocationProviderClient
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         // Inicializar configuración de OSM
@@ -44,16 +42,13 @@ class MapsActivity : AppCompatActivity() {
         mapView.setBuiltInZoomControls(true)
         mapView.setMultiTouchControls(true)
 
-        // Cargar puntos de interés
         loadInterestPoints()
 
-        // Verificar permisos para la ubicación
         checkPermissions()
     }
 
     private fun loadInterestPoints() {
         try {
-            // Cargar el JSON de los assets
             val json = loadJSONFromAsset("locations.json")
             val locationsObj = JSONObject(json).getJSONArray("locationsArray")
 
@@ -69,7 +64,6 @@ class MapsActivity : AppCompatActivity() {
                 marker.position = point
                 marker.title = name
 
-                // Agregar el marcador al mapa
                 mapView.overlays.add(marker)
             }
         } catch (e: Exception) {
@@ -118,7 +112,6 @@ class MapsActivity : AppCompatActivity() {
         }
         fusedLocationClient.lastLocation.addOnSuccessListener(this, OnSuccessListener<Location> { location ->
             if (location != null) {
-                // Obtén la ubicación del dispositivo
                 val currentLocation = GeoPoint(location.latitude, location.longitude)
 
                 // Establece el centro del mapa y el zoom
