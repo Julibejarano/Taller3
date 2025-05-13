@@ -53,15 +53,14 @@ class RegisterActivity : AppCompatActivity() {
             validarCamposYCrearUsuario()
         }
     }
-
     private fun validarCamposYCrearUsuario() {
         val nombre = binding.etNombre.text.toString().trim()
         val apellido = binding.etApellido.text.toString().trim()
         val email = binding.etEmail.text.toString().trim()
         val password = binding.etPassword.text.toString().trim()
         val id = binding.etId.text.toString().trim()
-        val latitud = binding.etLatitud.text.toString().toDoubleOrNull()
-        val longitud = binding.etLongitud.text.toString().toDoubleOrNull()
+        val latitud = binding.etLatitud.text.toString().trim().toDoubleOrNull()
+        val longitud = binding.etLongitud.text.toString().trim().toDoubleOrNull()
 
         if (nombre.isEmpty() || apellido.isEmpty() || email.isEmpty() ||
             password.isEmpty() || id.isEmpty() || selectedImageUri == null ||

@@ -5,8 +5,12 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.firebase.firestore.FirebaseFirestore
 
 class ListaUsuariosActivity : AppCompatActivity() {
+
+    private lateinit var db: FirebaseFirestore
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_lista_usuarios)
@@ -14,20 +18,32 @@ class ListaUsuariosActivity : AppCompatActivity() {
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewUsuarios)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        // Simulación de usuarios disponibles
-        val usuarios = listOf(
-            Usuario("Juan Pérez", "", 4.6, -74.1),
-            Usuario("Ana Gómez", "", 4.62, -74.08),
-            Usuario("Carlos Ruiz", "", 4.65, -74.12)
-        )
+        db = FirebaseFirestore.getInstance()
 
-        recyclerView.adapter = UsuarioAdapter(usuarios) { usuario ->
-            // Al pulsar el botón "Ver posición"
-            val intent = Intent(this, MapsActivity::class.java)
-            intent.putExtra("nombre", usuario.nombre)
-            intent.putExtra("lat", usuario.lat)
-            intent.putExtra("lon", usuario.lon)
-            startActivity(intent)
-        }
+        // Cargar usuarios desde Firestore
+        db.collection("usuarios")
+            .whereEqualTo("estado", "disponible")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    // Manejar error
+                    return@addSnapshotListener
+                }
+
+                val usuarios = mutableListOf<Usuario>()
+
+                for (document in snapshot!!) {
+                    val usuario = document.toObject(Usuario::class.java)
+                    usuarios.add(usuario)
+                }
+
+                recyclerView.adapter = UsuarioAdapter(usuarios) { usuario ->
+                    val intent = Intent(this, MapsActivity::class.java)
+                    intent.putExtra("nombre", usuario.nombre)
+                    intent.putExtra("apellido", usuario.apellido)
+                    intent.putExtra("lat", usuario.lat)
+                    intent.putExtra("lon", usuario.lon)
+                    startActivity(intent)
+                }
+            }
     }
 }

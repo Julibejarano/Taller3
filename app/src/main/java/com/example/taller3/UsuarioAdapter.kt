@@ -8,6 +8,7 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 
 class UsuarioAdapter(
     private val usuarios: List<Usuario>,
@@ -27,17 +28,15 @@ class UsuarioAdapter(
 
     override fun onBindViewHolder(holder: UsuarioViewHolder, position: Int) {
         val usuario = usuarios[position]
-        holder.txtNombre.text = usuario.nombre
+        holder.txtNombre.text = "${usuario.nombre} ${usuario.apellido}"
 
-        // Si tienes imágenes, puedes cargarlas con Glide o Picasso
-        // Glide.with(holder.imgPerfil.context).load(usuario.urlImagen).into(holder.imgPerfil)
+        // Cargar imagen con Glide
+        Glide.with(holder.imgPerfil.context)
+            .load(usuario.urlImagen)
+            .into(holder.imgPerfil)
 
         holder.btnVerPosicion.setOnClickListener {
-            val intent = Intent(holder.itemView.context, MapsActivity::class.java)
-            intent.putExtra("nombre", usuario.nombre)
-            intent.putExtra("lat", usuario.lat)
-            intent.putExtra("lon", usuario.lon)
-            holder.itemView.context.startActivity(intent)
+            onVerPosicionClick(usuario)
         }
     }
 
