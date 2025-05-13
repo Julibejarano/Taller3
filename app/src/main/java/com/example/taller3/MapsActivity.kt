@@ -3,6 +3,7 @@ package com.example.taller3
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.location.Location
 import android.os.Bundle
 import android.os.Handler
@@ -11,6 +12,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.example.taller3.databinding.ActivityMapsBinding
 import org.json.JSONObject
 import org.osmdroid.api.IMapController
@@ -37,32 +39,6 @@ class MapsActivity : AppCompatActivity() {
     private lateinit var actualizacionRunnable: Runnable
     private var lineaDistancia: Polyline? = null
 
-    // Función para cargar puntos de interés
-    private fun loadInterestPoints() {
-        try {
-            val json = loadJSONFromAsset("locations.json")
-            val locationsObj = JSONObject(json).getJSONArray("locationsArray")
-
-            // Iterar sobre los puntos de interés y agregarlos al mapa
-            for (i in 0 until locationsObj.length()) {
-                val location = locationsObj.getJSONObject(i)
-                val latitude = location.getDouble("latitude")
-                val longitude = location.getDouble("longitude")
-                val name = location.getString("name")
-
-                val point = GeoPoint(latitude, longitude)
-                val marker = Marker(mapView)
-                marker.position = point
-                marker.title = name
-
-                mapView.overlays.add(marker)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Toast.makeText(this, "Error cargando los puntos de interés", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -82,6 +58,9 @@ class MapsActivity : AppCompatActivity() {
         mapView.setBuiltInZoomControls(true)
         mapView.setMultiTouchControls(true)
 
+        // Cargar SIEMPRE los puntos de interés
+        loadInterestPoints()
+
         // Verificar si se abrió para seguimiento
         intent.extras?.let {
             if (it.containsKey("nombre")) {
@@ -92,13 +71,42 @@ class MapsActivity : AppCompatActivity() {
                 // Iniciar seguimiento
                 usuarioSeguido = Usuario(nombre, "", lat, lon)
                 iniciarSeguimiento()
-            } else {
-                // Cargar puntos de interés normales
-                loadInterestPoints()
             }
-        } ?: loadInterestPoints()
+        }
 
         checkPermissions()
+    }
+
+    private fun loadInterestPoints() {
+        try {
+            val json = loadJSONFromAsset("locations.json")
+            val locationsObj = JSONObject(json).getJSONArray("locationsArray")
+
+            // Obtener un ícono personalizado para los puntos de interés (puedes usar cualquier drawable)
+            // Si no tienes un ícono específico, puedes usar uno de los recursos de Android
+            val iconoAzul: Drawable? = ContextCompat.getDrawable(this, android.R.drawable.ic_menu_compass)
+            iconoAzul?.setTint(Color.BLUE) // Cambiar el color a azul
+
+            // Iterar sobre los puntos de interés y agregarlos al mapa
+            for (i in 0 until locationsObj.length()) {
+                val location = locationsObj.getJSONObject(i)
+                val latitude = location.getDouble("latitude")
+                val longitude = location.getDouble("longitude")
+                val name = location.getString("name")
+
+                val point = GeoPoint(latitude, longitude)
+                val marker = Marker(mapView)
+                marker.position = point
+                marker.title = name
+                marker.icon = iconoAzul // Asignar el ícono azul
+                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM) // Centrar el ícono
+
+                mapView.overlays.add(marker)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Error cargando los puntos de interés", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun loadJSONFromAsset(fileName: String): String {
@@ -118,6 +126,21 @@ class MapsActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
         } else {
             getCurrentLocation()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                getCurrentLocation()
+            } else {
+                Toast.makeText(this, "Se requiere permiso de ubicación", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -169,6 +192,8 @@ class MapsActivity : AppCompatActivity() {
             marcadorUsuarioSeguido = Marker(mapView).apply {
                 position = posicionUsuario
                 title = usuario.nombre
+                // Puedes usar un ícono diferente para el usuario seguido si lo deseas
+                // icon = ContextCompat.getDrawable(this@MapsActivity, android.R.drawable.ic_menu_myplaces)
             }
             mapView.overlays.add(marcadorUsuarioSeguido)
 
