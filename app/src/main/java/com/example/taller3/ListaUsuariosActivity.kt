@@ -23,7 +23,7 @@ class ListaUsuariosActivity : AppCompatActivity() {
 
         recyclerView.adapter = UsuarioAdapter(usuarios) { usuario ->
             // Al pulsar el botón "Ver posición"
-            val intent = Intent(this, SeguimientoUsuarioActivity::class.java)
+            val intent = Intent(this, MapsActivity::class.java)
             intent.putExtra("nombre", usuario.nombre)
             intent.putExtra("lat", usuario.lat)
             intent.putExtra("lon", usuario.lon)

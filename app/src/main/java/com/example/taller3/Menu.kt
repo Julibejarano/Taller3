@@ -1,5 +1,6 @@
 package com.example.taller3
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
 import android.widget.Toast
@@ -7,52 +8,44 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.example.taller3.databinding.ActivityMenuBinding
 
-class Menu : AppCompatActivity() {
+class  Menu : AppCompatActivity() {
+    private lateinit var binding: ActivityMenuBinding
+    private var disponible = true
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        override fun onCreateOptionsMenu(menu: Menu): Boolean {
-            menuInflater.inflate(R.menu.main_menu, menu)
-            return true
+        super.onCreate(savedInstanceState)
+        binding = ActivityMenuBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Configurar listeners para los botones
+        binding.btnToggleStatus.setOnClickListener {
+            alternarEstado()
         }
 
-        override fun onOptionsItemSelected(item: MenuItem): Boolean {
-            return when (item.itemId) {
-                R.id.action_logout -> {
-                    cerrarSesion()
-                    true
-                }
-                R.id.action_toggle_status -> {
-                    alternarEstado(item)
-                    true
-                }
-                R.id.action_list_users -> {
-                    abrirListaUsuarios()
-                    true
-                }
-                else -> super.onOptionsItemSelected(item)
-            }
+        binding.btnLogout.setOnClickListener {
+            cerrarSesion()
         }
 
-// Variables y funciones auxiliares
-        private var disponible = true
-
-        private fun alternarEstado(item: MenuItem) {
-            disponible = !disponible
-            item.title = if (disponible) "Disponible" else "Desconectado"
-            Toast.makeText(this, "Estado: ${item.title}", Toast.LENGTH_SHORT).show()
+        binding.btnListUsers.setOnClickListener {
+            abrirListaUsuarios()
         }
+    }
 
-        private fun cerrarSesion() {
-            // Aquí puedes limpiar datos, cerrar sesión, y/o navegar a LoginActivity
-            Toast.makeText(this, "Sesión cerrada", Toast.LENGTH_SHORT).show()
-            // finish() o startActivity(Intent(this, LoginActivity::class.java))
-        }
+    private fun alternarEstado() {
+        disponible = !disponible
+        binding.btnToggleStatus.text = if (disponible) "Disponible" else "Desconectado"
+        Toast.makeText(this, "Estado: ${binding.btnToggleStatus.text}", Toast.LENGTH_SHORT).show()
+    }
 
-        private fun abrirListaUsuarios() {
-            // Lanza la pantalla de listado de usuarios
-            val intent = Intent(this, ListaUsuariosActivity::class.java)
-            startActivity(intent)
-        }
+    private fun cerrarSesion() {
+        Toast.makeText(this, "Sesión cerrada", Toast.LENGTH_SHORT).show()
+        // Lógica para cerrar sesión
+    }
 
+    private fun abrirListaUsuarios() {
+        val intent = Intent(this, ListaUsuariosActivity::class.java)
+        startActivity(intent)
     }
 }

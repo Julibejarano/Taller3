@@ -1,5 +1,6 @@
 package com.example.taller3
 
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -28,8 +29,16 @@ class UsuarioAdapter(
         val usuario = usuarios[position]
         holder.txtNombre.text = usuario.nombre
 
+        // Si tienes imágenes, puedes cargarlas con Glide o Picasso
         // Glide.with(holder.imgPerfil.context).load(usuario.urlImagen).into(holder.imgPerfil)
-        holder.btnVerPosicion.setOnClickListener { onVerPosicionClick(usuario) }
+
+        holder.btnVerPosicion.setOnClickListener {
+            val intent = Intent(holder.itemView.context, MapsActivity::class.java)
+            intent.putExtra("nombre", usuario.nombre)
+            intent.putExtra("lat", usuario.lat)
+            intent.putExtra("lon", usuario.lon)
+            holder.itemView.context.startActivity(intent)
+        }
     }
 
     override fun getItemCount() = usuarios.size
