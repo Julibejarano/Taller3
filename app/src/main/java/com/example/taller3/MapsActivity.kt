@@ -77,6 +77,7 @@ class MapsActivity : AppCompatActivity() {
     }
 
     private fun loadInterestPoints() {
+
         try {
             val json = loadJSONFromAsset("locations.json")
             val locationsObj = JSONObject(json).getJSONArray("locationsArray")
