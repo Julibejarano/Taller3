@@ -15,6 +15,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.taller3.databinding.ActivityRegisterBinding
+import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.storage
 
 class RegisterActivity : AppCompatActivity() {
 
@@ -49,25 +53,71 @@ class RegisterActivity : AppCompatActivity() {
             validarCamposYCrearUsuario()
         }
     }
-
     private fun validarCamposYCrearUsuario() {
         val nombre = binding.etNombre.text.toString().trim()
         val apellido = binding.etApellido.text.toString().trim()
         val email = binding.etEmail.text.toString().trim()
         val password = binding.etPassword.text.toString().trim()
         val id = binding.etId.text.toString().trim()
-        val latitud = binding.etLatitud.text.toString().trim()
-        val longitud = binding.etLongitud.text.toString().trim()
+        val latitud = binding.etLatitud.text.toString().trim().toDoubleOrNull()
+        val longitud = binding.etLongitud.text.toString().trim().toDoubleOrNull()
 
-        if (nombre.isEmpty() || apellido.isEmpty() || email.isEmpty() || password.isEmpty()
-            || id.isEmpty() || selectedImageUri == null || latitud.isEmpty() || longitud.isEmpty()
-        ) {
+        if (nombre.isEmpty() || apellido.isEmpty() || email.isEmpty() ||
+            password.isEmpty() || id.isEmpty() || selectedImageUri == null ||
+            latitud == null || longitud == null) {
             Toast.makeText(this, "No es posible crear el usuario, hay campos incompletos", Toast.LENGTH_LONG).show()
-        } else {
-            Toast.makeText(this, "Usuario creado correctamente", Toast.LENGTH_LONG).show()
-            // Aquí se podrá integrar Firebase más adelante
+            return
         }
+
+        // Registrar usuario en Firebase Auth
+        FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password)
+            .addOnCompleteListener { authTask ->
+                if (authTask.isSuccessful) {
+                    // Obtener el UID del usuario recién creado
+                    val uid = FirebaseAuth.getInstance().currentUser?.uid
+
+                    // Subir imagen de perfil
+                    val storageRef = Firebase.storage.reference.child("profile_images/${uid}.jpg")
+                    selectedImageUri?.let { uri ->
+                        storageRef.putFile(uri)
+                            .addOnSuccessListener { taskSnapshot ->
+                                // Obtener URL de descarga
+                                storageRef.downloadUrl.addOnSuccessListener { downloadUri ->
+                                    // Guardar datos adicionales en Firestore
+                                    val user = hashMapOf(
+                                        "nombre" to nombre,
+                                        "apellido" to apellido,
+                                        "email" to email,
+                                        "id" to id,
+                                        "latitud" to latitud,
+                                        "longitud" to longitud,
+                                        "imagenPerfil" to downloadUri.toString(),
+                                        "estado" to "disponible" // o "desconectado"
+                                    )
+
+                                    // Usar el UID como clave del documento
+                                    FirebaseFirestore.getInstance().collection("usuarios")
+                                        .document(uid!!)
+                                        .set(user)
+                                        .addOnSuccessListener {
+                                            Toast.makeText(this, "Usuario creado correctamente", Toast.LENGTH_SHORT).show()
+                                            finish()
+                                        }
+                                        .addOnFailureListener { e ->
+                                            Toast.makeText(this, "Error guardando datos en Firestore: ${e.message}", Toast.LENGTH_LONG).show()
+                                        }
+                                }
+                            }
+                            .addOnFailureListener { e ->
+                                Toast.makeText(this, "Error subiendo imagen: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
+                    }
+                } else {
+                    Toast.makeText(this, "Error registrando usuario: ${authTask.exception?.message}", Toast.LENGTH_LONG).show()
+                }
+            }
     }
+
 
     private fun checkStoragePermissionAndPickImage() {
         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

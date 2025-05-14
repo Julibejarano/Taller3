@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_toggle_status"
+        android:title="Cambiar estado"/>
+    <item
+        android:id="@+id/menu_list_users"
+        android:title="Usuarios disponibles"/>
+    <item
+        android:id="@+id/menu_logout"
+        android:title="Cerrar sesión"/>
+</menu>

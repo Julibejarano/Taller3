@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <Button
+        android:id="@+id/btn_toggle_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Disponible" />
+
+    <Button
+        android:id="@+id/btn_logout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Cerrar sesión" />
+
+    <Button
+        android:id="@+id/btn_list_users"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Listar usuarios" />
+
+</LinearLayout>
