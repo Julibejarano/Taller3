@@ -3,6 +3,7 @@ package com.example.taller3
 import android.Manifest
 import android.content.pm.PackageManager
 import android.content.Intent
+import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
 import android.os.Handler
@@ -80,6 +81,10 @@ class MapsActivity : AppCompatActivity() {
             val json = loadJSONFromAsset("locations.json")
             val locationsObj = JSONObject(json).getJSONArray("locationsArray")
 
+            // Obtener un ícono personalizado para los puntos de interés
+            val iconoPersonalizado = ContextCompat.getDrawable(this, R.drawable.baseline_arrow_downward_24)
+            iconoPersonalizado?.setTint(Color.BLUE) // Cambiar el color a azul
+
             for (i in 0 until locationsObj.length()) {
                 val location = locationsObj.getJSONObject(i)
                 val latitude = location.getDouble("latitude")
@@ -89,6 +94,8 @@ class MapsActivity : AppCompatActivity() {
                 val marker = Marker(mapView).apply {
                     position = point
                     title = name
+                    icon = iconoPersonalizado // Asignar el ícono personalizado
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM) // Ajustar el anclaje del ícono
                 }
                 mapView.overlays.add(marker)
             }
@@ -97,6 +104,7 @@ class MapsActivity : AppCompatActivity() {
             Toast.makeText(this, "Error cargando los puntos de interés", Toast.LENGTH_SHORT).show()
         }
     }
+
 
     private fun loadJSONFromAsset(fileName: String): String {
         val json: String

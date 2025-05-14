@@ -26,7 +26,7 @@ class MainActivity : AppCompatActivity() {
                 FirebaseAuth.getInstance().signInWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
-                            val intent = Intent(this, MapsActivity::class.java)
+                            val intent = Intent(this, Menu::class.java)
                             startActivity(intent)
                             finish()
                         } else {

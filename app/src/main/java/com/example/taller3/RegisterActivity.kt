@@ -73,8 +73,11 @@ class RegisterActivity : AppCompatActivity() {
         FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { authTask ->
                 if (authTask.isSuccessful) {
+                    // Obtener el UID del usuario recién creado
+                    val uid = FirebaseAuth.getInstance().currentUser?.uid
+
                     // Subir imagen de perfil
-                    val storageRef = Firebase.storage.reference.child("profile_images/${id}.jpg")
+                    val storageRef = Firebase.storage.reference.child("profile_images/${uid}.jpg")
                     selectedImageUri?.let { uri ->
                         storageRef.putFile(uri)
                             .addOnSuccessListener { taskSnapshot ->
@@ -92,8 +95,9 @@ class RegisterActivity : AppCompatActivity() {
                                         "estado" to "disponible" // o "desconectado"
                                     )
 
+                                    // Usar el UID como clave del documento
                                     FirebaseFirestore.getInstance().collection("usuarios")
-                                        .document(id)
+                                        .document(uid!!)
                                         .set(user)
                                         .addOnSuccessListener {
                                             Toast.makeText(this, "Usuario creado correctamente", Toast.LENGTH_SHORT).show()
@@ -113,6 +117,7 @@ class RegisterActivity : AppCompatActivity() {
                 }
             }
     }
+
 
     private fun checkStoragePermissionAndPickImage() {
         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
