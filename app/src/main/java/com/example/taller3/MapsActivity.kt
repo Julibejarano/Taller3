@@ -2,31 +2,28 @@ package com.example.taller3
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.content.Intent
 import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.Menu
-import android.view.MenuItem
+import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.taller3.databinding.ActivityMapsBinding
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.tasks.OnSuccessListener
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import org.json.JSONObject
 import org.osmdroid.api.IMapController
-import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.util.GeoPoint
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.tasks.OnSuccessListener
+import com.google.firebase.firestore.FirebaseFirestore
 import java.text.DecimalFormat
 
 class MapsActivity : AppCompatActivity() {
@@ -34,70 +31,84 @@ class MapsActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMapsBinding
     private lateinit var mapView: MapView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private val db = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
+    private lateinit var db: FirebaseFirestore
 
-    // Variables para seguimiento
+    // Variables para el seguimiento
     private var usuarioSeguido: Usuario? = null
     private var marcadorUsuarioSeguido: Marker? = null
     private var miUbicacion: GeoPoint? = null
-    private var handler = Handler(Looper.getMainLooper())
-    private lateinit var locationUpdateRunnable: Runnable
     private var lineaDistancia: Polyline? = null
+    private val TAG = "MapsActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         binding = ActivityMapsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        db = FirebaseFirestore.getInstance()
 
         // Inicializar configuración de OSM
-        org.osmdroid.config.Configuration.getInstance().load(
-            applicationContext,
-            android.preference.PreferenceManager.getDefaultSharedPreferences(applicationContext)
-        )
+        org.osmdroid.config.Configuration.getInstance().load(applicationContext, android.preference.PreferenceManager.getDefaultSharedPreferences(applicationContext))
 
+        // Inicializar el MapView
         mapView = MapView(this)
         binding.mapFrameLayout.addView(mapView)
+
         mapView.setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
         mapView.setBuiltInZoomControls(true)
         mapView.setMultiTouchControls(true)
 
+        // Cargar SIEMPRE los puntos de interés
         loadInterestPoints()
-        checkPermissions()
 
-        // Verificar si se pasó un usuario para seguir
+        // Verificar si se abrió para seguimiento
         intent.extras?.let {
             if (it.containsKey("usuario_id")) {
                 val usuarioId = it.getString("usuario_id", "")
+                Log.d(TAG, "Siguiendo usuario por ID: $usuarioId")
                 escucharActualizacionEnTiempoReal(usuarioId)
+            } else if (it.containsKey("nombre") && it.containsKey("lat") && it.containsKey("lon")) {
+                val nombre = it.getString("nombre", "")
+                val lat = it.getDouble("lat", 0.0)
+                val lon = it.getDouble("lon", 0.0)
+
+                Log.d(TAG, "Siguiendo usuario por coordenadas: $nombre en $lat, $lon")
+
+                // Crear un usuario con estos datos
+                val usuario = Usuario(nombre = nombre, lat = lat, lon = lon)
+                usuarioSeguido = usuario
+                iniciarSeguimiento(usuario)
             }
         }
+
+        checkPermissions()
     }
 
     private fun loadInterestPoints() {
-
         try {
             val json = loadJSONFromAsset("locations.json")
             val locationsObj = JSONObject(json).getJSONArray("locationsArray")
 
             // Obtener un ícono personalizado para los puntos de interés
-            val iconoPersonalizado = ContextCompat.getDrawable(this, R.drawable.baseline_arrow_downward_24)
-            iconoPersonalizado?.setTint(Color.BLUE) // Cambiar el color a azul
+            val iconoAzul = ContextCompat.getDrawable(this, android.R.drawable.ic_menu_compass)
+            iconoAzul?.setTint(Color.BLUE) // Cambiar el color a azul
 
+            // Iterar sobre los puntos de interés y agregarlos al mapa
             for (i in 0 until locationsObj.length()) {
                 val location = locationsObj.getJSONObject(i)
                 val latitude = location.getDouble("latitude")
                 val longitude = location.getDouble("longitude")
                 val name = location.getString("name")
+
                 val point = GeoPoint(latitude, longitude)
-                val marker = Marker(mapView).apply {
-                    position = point
-                    title = name
-                    icon = iconoPersonalizado // Asignar el ícono personalizado
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM) // Ajustar el anclaje del ícono
-                }
+                val marker = Marker(mapView)
+                marker.position = point
+                marker.title = name
+                marker.icon = iconoAzul // Asignar el ícono azul
+                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM) // Centrar el ícono
+
                 mapView.overlays.add(marker)
             }
         } catch (e: Exception) {
@@ -105,7 +116,6 @@ class MapsActivity : AppCompatActivity() {
             Toast.makeText(this, "Error cargando los puntos de interés", Toast.LENGTH_SHORT).show()
         }
     }
-
 
     private fun loadJSONFromAsset(fileName: String): String {
         val json: String
@@ -153,149 +163,158 @@ class MapsActivity : AppCompatActivity() {
         ) {
             return
         }
-
         fusedLocationClient.lastLocation.addOnSuccessListener(this, OnSuccessListener<Location> { location ->
             if (location != null) {
                 val currentLocation = GeoPoint(location.latitude, location.longitude)
-                miUbicacion = currentLocation
+                miUbicacion = currentLocation  // Guardar mi ubicación
 
+                Log.d(TAG, "Ubicación actual: ${location.latitude}, ${location.longitude}")
+
+                // Establece el centro del mapa y el zoom
                 val mapController: IMapController = mapView.controller
                 mapController.setZoom(15)
                 mapController.setCenter(currentLocation)
 
+                // Agrega un marcador para la ubicación actual
                 val currentLocationMarker = Marker(mapView)
                 currentLocationMarker.position = currentLocation
                 currentLocationMarker.title = "Tu ubicación"
                 mapView.overlays.add(currentLocationMarker)
+
+                // Si estamos en modo seguimiento, calcular distancia
+                if (usuarioSeguido != null) {
+                    calcularYMostrarDistancia()
+                }
             } else {
                 Toast.makeText(this, "No se pudo obtener la ubicación actual", Toast.LENGTH_SHORT).show()
             }
         })
     }
 
+    // FUNCIONES PARA EL SEGUIMIENTO
     private fun escucharActualizacionEnTiempoReal(usuarioId: String) {
+        Log.d(TAG, "Iniciando escucha para usuario ID: $usuarioId")
         db.collection("usuarios").document(usuarioId)
             .addSnapshotListener { documentSnapshot, e ->
                 if (e != null) {
+                    Log.e(TAG, "Error escuchando cambios: ${e.message}")
                     Toast.makeText(this, "Error escuchando cambios: ${e.message}", Toast.LENGTH_SHORT).show()
                     return@addSnapshotListener
                 }
 
                 if (documentSnapshot != null && documentSnapshot.exists()) {
-                    val usuario = documentSnapshot.toObject(Usuario::class.java)
-                    usuario?.let {
-                        usuarioSeguido = it
-                        iniciarSeguimiento(it)
+                    try {
+                        // Extraer datos manualmente
+                        val nombre = documentSnapshot.getString("nombre") ?: ""
+                        val urlImagen = documentSnapshot.getString("imagenPerfil") ?: ""
+                        val latitud = documentSnapshot.getDouble("latitud") ?: 0.0
+                        val longitud = documentSnapshot.getDouble("longitud") ?: 0.0
+
+                        Log.d(TAG, "Datos recibidos: $nombre en $latitud, $longitud")
+
+                        // Crear o actualizar el usuario seguido
+                        if (usuarioSeguido == null) {
+                            usuarioSeguido = Usuario(nombre = nombre, urlImagen = urlImagen, lat = latitud, lon = longitud)
+                            iniciarSeguimiento(usuarioSeguido!!)
+                        } else {
+                            usuarioSeguido = usuarioSeguido?.copy(lat = latitud, lon = longitud)
+                            // Actualizar marcador
+                            marcadorUsuarioSeguido?.position = GeoPoint(latitud, longitud)
+                            // Calcular distancia
+                            calcularYMostrarDistancia()
+                            mapView.invalidate()
+                        }
+                    } catch (ex: Exception) {
+                        Log.e(TAG, "Error procesando documento: ${ex.message}")
                     }
+                } else {
+                    Log.d(TAG, "El documento no existe")
                 }
             }
     }
 
     private fun iniciarSeguimiento(usuario: Usuario) {
+        Log.d(TAG, "Iniciando seguimiento para: ${usuario.nombre}")
+
+        // Mostrar el panel de distancia
+        binding.tvDistancia.visibility = View.VISIBLE
+
+        // Agregar marcador del usuario seguido
         val posicionUsuario = GeoPoint(usuario.lat, usuario.lon)
         marcadorUsuarioSeguido = Marker(mapView).apply {
             position = posicionUsuario
-            title = "${usuario.nombre} ${usuario.apellido}"
+            title = usuario.nombre
+            // Usar un ícono distintivo para el usuario seguido
+            val iconoUsuario = ContextCompat.getDrawable(this@MapsActivity, android.R.drawable.ic_menu_myplaces)
+            iconoUsuario?.setTint(Color.RED)
+            icon = iconoUsuario
         }
         mapView.overlays.add(marcadorUsuarioSeguido)
 
+        // Centrar el mapa en el usuario seguido
         val mapController: IMapController = mapView.controller
         mapController.setZoom(15)
         mapController.setCenter(posicionUsuario)
 
-        startDistanceUpdates(usuario.id)
-    }
-
-    private fun startDistanceUpdates(usuarioId: String) {
-        locationUpdateRunnable = object : Runnable {
-            override fun run() {
-                db.collection("usuarios").document(usuarioId).get()
-                    .addOnSuccessListener { document ->
-                        val usuario = document.toObject(Usuario::class.java)
-                        usuario?.let {
-                            usuarioSeguido = it
-                            marcadorUsuarioSeguido?.position = GeoPoint(it.lat, it.lon)
-                            calcularYMostrarDistancia()
-                            mapView.invalidate()
-                        }
-                    }
-                    .addOnFailureListener { e ->
-                        Toast.makeText(this@MapsActivity, "Error obteniendo ubicación: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-
-                handler.postDelayed(this, 3000)
-            }
+        // Calcular distancia inicial si ya tenemos nuestra ubicación
+        miUbicacion?.let {
+            calcularYMostrarDistancia()
         }
-
-        handler.post(locationUpdateRunnable)
     }
 
     private fun calcularYMostrarDistancia() {
         miUbicacion?.let { miPos ->
             usuarioSeguido?.let { usuario ->
+                Log.d(TAG, "Calculando distancia entre ${miPos.latitude},${miPos.longitude} y ${usuario.lat},${usuario.lon}")
+
                 val results = FloatArray(1)
-                Location.distanceBetween(miPos.latitude, miPos.longitude, usuario.lat, usuario.lon, results)
+                Location.distanceBetween(
+                    miPos.latitude, miPos.longitude,
+                    usuario.lat, usuario.lon,
+                    results
+                )
                 val distancia = results[0]
+
                 val formateador = DecimalFormat("#,###.##")
                 val distanciaTexto = when {
                     distancia < 1000 -> "${formateador.format(distancia)} metros"
                     else -> "${formateador.format(distancia / 1000)} kilómetros"
                 }
+
                 binding.tvDistancia.text = "Distancia a ${usuario.nombre}: $distanciaTexto"
+
+                // Dibujar línea entre los dos puntos
                 dibujarLineaDistancia(miPos, GeoPoint(usuario.lat, usuario.lon))
             }
         }
     }
 
     private fun dibujarLineaDistancia(puntoInicio: GeoPoint, puntoFin: GeoPoint) {
+        // Eliminar línea anterior si existe
         lineaDistancia?.let {
             mapView.overlays.remove(it)
         }
 
+        // Crear nueva línea
         lineaDistancia = Polyline().apply {
-            outlinePaint.color = android.graphics.Color.RED
+            outlinePaint.color = Color.RED
             outlinePaint.strokeWidth = 5f
+
+            // Agregar los puntos
             addPoint(puntoInicio)
             addPoint(puntoFin)
         }
 
+        // Agregar la línea al mapa
         mapView.overlays.add(lineaDistancia)
+
+        // Actualizar el mapa
         mapView.invalidate()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        handler.removeCallbacksAndMessages(null)
-    }
-
-    // ✅ onCreateOptionsMenu corregido
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.map_menu, menu)
-        return true
-    }
-
-    // ✅ onOptionsItemSelected corregido
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            R.id.menu_toggle_status -> {
-                val intent = Intent(this, Menu::class.java)
-                startActivity(intent)
-                return true
-            }
-            R.id.menu_list_users -> {
-                val intent = Intent(this, ListaUsuariosActivity::class.java)
-                startActivity(intent)
-                return true
-            }
-            R.id.menu_logout -> {
-                FirebaseAuth.getInstance().signOut()
-                Toast.makeText(this, "Sesión cerrada", Toast.LENGTH_SHORT).show()
-                finish()
-                val intent = Intent(this, MainActivity::class.java)
-                startActivity(intent)
-                return true
-            }
-            else -> return super.onOptionsItemSelected(item)
-        }
+        // No es necesario limpiar nada más, ya que estamos usando Firestore listeners
+        // que se limpian automáticamente cuando la actividad se destruye
     }
 }
